@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
@@ -16,5 +17,14 @@ func main() {
 	serveMux.Handle("/", helloHandler)
 	serveMux.Handle("/goodbye", goodbyeHandler)
 
-	log.Fatal(http.ListenAndServe(":8080", serveMux))
+	server := &http.Server{
+		Addr:         "9090",
+		Handler:      serveMux,
+		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
+	}
+
+	// log.Fatal(http.ListenAndServe(":9090", serveMux))
+	server.ListenAndServe()
 }
