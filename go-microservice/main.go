@@ -18,7 +18,7 @@ func main() {
 	serveMux.Handle("/goodbye", goodbyeHandler)
 
 	server := &http.Server{
-		Addr:         "9090",
+		Addr:         ":9090",
 		Handler:      serveMux,
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
