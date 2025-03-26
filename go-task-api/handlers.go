@@ -1,9 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
-	"slices"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -20,10 +20,6 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-// In-memory task store
-var tasks []Task
-var nextID = 1
-
 // writeJSON sets the content type and writes JSON data to the response
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -36,6 +32,25 @@ func sendError(w http.ResponseWriter, message string, statusCode int) {
 }
 
 func getTasks(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query("SELECT id, title, description, completed FROM tasks")
+	if err != nil {
+		sendError(w, "Failed to fetch tasks", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var tasks []Task
+
+	for rows.Next() {
+		var t Task
+		err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
+
+		if err != nil {
+			sendError(w, "Failed to scan tasks", http.StatusInternalServerError)
+			return
+		}
+		tasks = append(tasks, t)
+	}
 	writeJSON(w, http.StatusOK, tasks)
 }
 
@@ -48,13 +63,19 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, task := range tasks {
-		if task.ID == id {
-			writeJSON(w, http.StatusOK, task)
-			return
-		}
+	var t Task
+
+	err = db.QueryRow("SELECT id, title, description, completed FROM tasks WHERE id = ?", id).
+		Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
+
+	if err == sql.ErrNoRows {
+		sendError(w, "Task not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		sendError(w, "Failed to fetch task", http.StatusInternalServerError)
+		return
 	}
-	sendError(w, "Task not found", http.StatusNotFound)
+	writeJSON(w, http.StatusOK, t)
 }
 
 func createTask(w http.ResponseWriter, r *http.Request) {
@@ -77,11 +98,15 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newTask.ID = nextID
-	nextID++
+	result, err := db.Exec("INSERT INTO tasks (title, description, completed) VALUES (?, ?, ?)",
+		newTask.Title, newTask.Description, newTask.Completed)
 
-	tasks = append(tasks, newTask)
-
+	if err != nil {
+		sendError(w, "Failed to create task", http.StatusInternalServerError)
+		return
+	}
+	id, _ := result.LastInsertId()
+	newTask.ID = int(id)
 	writeJSON(w, http.StatusCreated, newTask)
 }
 
@@ -110,15 +135,23 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for i, task := range tasks {
-		if task.ID == id {
-			updatedTask.ID = id
-			tasks[i] = updatedTask
-			writeJSON(w, http.StatusOK, updatedTask)
-			return
-		}
+	result, err := db.Exec("UPDATE tasks SET title = ?, description = ?, completed = ? WHERE id = ?",
+		updatedTask.Title, updatedTask.Description, updatedTask.Completed, id)
+
+	if err != nil {
+		sendError(w, "Failed to update task", http.StatusInternalServerError)
+		return
 	}
-	sendError(w, "Task not found", http.StatusNotFound)
+
+	rowsAffected, _ := result.RowsAffected()
+
+	if rowsAffected == 0 {
+		sendError(w, "Task not found", http.StatusNotFound)
+		return
+	}
+
+	updatedTask.ID = id
+	writeJSON(w, http.StatusOK, updatedTask)
 }
 func deleteTask(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
@@ -127,15 +160,20 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for i, task := range tasks {
-		if task.ID == id {
-			// tasks = append(tasks[:i], tasks[i+1:]...)
-			tasks = slices.Delete(tasks, i, i+1)
-			writeJSON(w, http.StatusNoContent, nil)
-			return
-		}
+	result, err := db.Exec("DELETE FROM tasks WHERE id = ?", id)
+
+	if err != nil {
+		sendError(w, "Failed to delete task", http.StatusInternalServerError)
+		return
 	}
-	sendError(w, "Task not found", http.StatusNotFound)
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		sendError(w, "Task not found", http.StatusNotFound)
+		return
+	}
+
+	writeJSON(w, http.StatusNoContent, nil)
 }
 
 func toggleTaskCompletion(w http.ResponseWriter, r *http.Request) {
@@ -145,12 +183,26 @@ func toggleTaskCompletion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for i, task := range tasks {
-		if task.ID == id {
-			tasks[i].Completed = !tasks[i].Completed
-			writeJSON(w, http.StatusOK, tasks[i])
-			return
-		}
+	var t Task
+
+	err = db.QueryRow("SELECT id, title, description, completed FROM tasks WHERE id = ?", id).
+		Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
+
+	if err == sql.ErrNoRows {
+		sendError(w, "Task not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		sendError(w, "Failed to fetch task", http.StatusInternalServerError)
+		return
 	}
-	sendError(w, "Task not found", http.StatusNotFound)
+
+	t.Completed = !t.Completed
+
+	_, err = db.Exec("UPDATE tasks SET completed = ? WHERE id = ?", t.Completed, id)
+	if err != nil {
+		sendError(w, "Failed to update task", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, t)
 }
