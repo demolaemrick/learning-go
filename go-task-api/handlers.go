@@ -16,19 +16,42 @@ type Task struct {
 	Completed   bool   `json:"completed"`
 }
 
+type APIResponse struct {
+	Status string       `json:"status"`
+	Data   any          `json:"data,omitempty"`  // For success
+	Error  *ErrorDetail `json:"error,omitempty"` // For errors, nil if success
+}
+
+type ErrorDetail struct {
+	Message string `json:"message"`
+	Code    string `json:"code,omitempty"` // Optional, e.g., "VALIDATION_ERROR"
+}
+
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
 // writeJSON sets the content type and writes JSON data to the response
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	resp := APIResponse{
+		Status: "success",
+		Data:   data,
+	}
+	json.NewEncoder(w).Encode(resp)
 }
 
 func sendError(w http.ResponseWriter, message string, statusCode int) {
-	writeJSON(w, statusCode, ErrorResponse{Error: message})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	resp := APIResponse{
+		Status: "error",
+		Error: &ErrorDetail{
+			Message: message,
+		},
+	}
+	json.NewEncoder(w).Encode(resp)
 }
 
 func getTasks(w http.ResponseWriter, r *http.Request) {
@@ -107,8 +130,7 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Failed to create task", http.StatusInternalServerError)
 		return
 	}
-	// id, _ := result.LastInsertId()
-	// newTask.ID = int(id)
+
 	writeJSON(w, http.StatusCreated, newTask)
 }
 
