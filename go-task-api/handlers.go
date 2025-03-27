@@ -65,7 +65,7 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 
 	var t Task
 
-	err = db.QueryRow("SELECT id, title, description, completed FROM tasks WHERE id = ?", id).
+	err = db.QueryRow("SELECT id, title, description, completed FROM tasks WHERE id = $1", id).
 		Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
 
 	if err == sql.ErrNoRows {
@@ -98,15 +98,17 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.Exec("INSERT INTO tasks (title, description, completed) VALUES (?, ?, ?)",
-		newTask.Title, newTask.Description, newTask.Completed)
+	err = db.QueryRow(
+		"INSERT INTO tasks (title, description, completed) VALUES ($1, $2, $3) RETURNING id",
+		newTask.Title, newTask.Description, newTask.Completed,
+	).Scan(&newTask.ID)
 
 	if err != nil {
 		sendError(w, "Failed to create task", http.StatusInternalServerError)
 		return
 	}
-	id, _ := result.LastInsertId()
-	newTask.ID = int(id)
+	// id, _ := result.LastInsertId()
+	// newTask.ID = int(id)
 	writeJSON(w, http.StatusCreated, newTask)
 }
 
@@ -135,7 +137,7 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.Exec("UPDATE tasks SET title = ?, description = ?, completed = ? WHERE id = ?",
+	result, err := db.Exec("UPDATE tasks SET title = $1, description = $2, completed = $3 WHERE id = $4",
 		updatedTask.Title, updatedTask.Description, updatedTask.Completed, id)
 
 	if err != nil {
@@ -153,6 +155,7 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 	updatedTask.ID = id
 	writeJSON(w, http.StatusOK, updatedTask)
 }
+
 func deleteTask(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -160,7 +163,7 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.Exec("DELETE FROM tasks WHERE id = ?", id)
+	result, err := db.Exec("DELETE FROM tasks WHERE id = $1", id)
 
 	if err != nil {
 		sendError(w, "Failed to delete task", http.StatusInternalServerError)
@@ -185,7 +188,7 @@ func toggleTaskCompletion(w http.ResponseWriter, r *http.Request) {
 
 	var t Task
 
-	err = db.QueryRow("SELECT id, title, description, completed FROM tasks WHERE id = ?", id).
+	err = db.QueryRow("SELECT id, title, description, completed FROM tasks WHERE id = $1", id).
 		Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
 
 	if err == sql.ErrNoRows {
@@ -198,7 +201,7 @@ func toggleTaskCompletion(w http.ResponseWriter, r *http.Request) {
 
 	t.Completed = !t.Completed
 
-	_, err = db.Exec("UPDATE tasks SET completed = ? WHERE id = ?", t.Completed, id)
+	_, err = db.Exec("UPDATE tasks SET completed = $1 WHERE id = $2", t.Completed, id)
 	if err != nil {
 		sendError(w, "Failed to update task", http.StatusInternalServerError)
 		return
