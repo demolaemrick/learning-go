@@ -38,6 +38,7 @@ func main() {
 	router.HandleFunc("/tasks/{id}", updateTask).Methods("PUT")
 	router.HandleFunc("/tasks/{id}", deleteTask).Methods("DELETE")
 	router.HandleFunc("/tasks/{id}/toggle", toggleTaskCompletion).Methods("PATCH")
+	router.HandleFunc("/tasks", deleteAllTasks).Methods("DELETE")
 
 	log.Printf("Starting server on port %v...", PORT)
 

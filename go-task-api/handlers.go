@@ -39,6 +39,9 @@ type ErrorResponse struct {
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+	if status == http.StatusNoContent {
+		return // No body for 204
+	}
 	resp := APIResponse{
 		Status: "success",
 		Data:   data,
@@ -252,4 +255,17 @@ func toggleTaskCompletion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, t)
+}
+
+func deleteAllTasks(w http.ResponseWriter, r *http.Request) {
+	_, err := db.Exec("TRUNCATE TABLE tasks RESTART IDENTITY")
+
+	if err != nil {
+		log.Printf("Error truncating tasks: %v", err)
+		sendError(w, "Failed to delete all tasks", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("All tasks deleted successfully")
+	writeJSON(w, http.StatusNoContent, nil)
 }
