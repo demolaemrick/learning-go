@@ -3,17 +3,21 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 )
 
 type Task struct {
-	ID          int    `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Completed   bool   `json:"completed"`
+	ID          int       `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Completed   bool      `json:"completed"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type APIResponse struct {
@@ -55,7 +59,7 @@ func sendError(w http.ResponseWriter, message string, statusCode int) {
 }
 
 func getTasks(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT id, title, description, completed FROM tasks")
+	rows, err := db.Query("SELECT id, title, description, completed, created_at, updated_at FROM tasks")
 	if err != nil {
 		sendError(w, "Failed to fetch tasks", http.StatusInternalServerError)
 		return
@@ -66,7 +70,7 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var t Task
-		err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
+		err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Completed, &t.CreatedAt, &t.UpdatedAt)
 
 		if err != nil {
 			sendError(w, "Failed to scan tasks", http.StatusInternalServerError)
@@ -88,8 +92,8 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 
 	var t Task
 
-	err = db.QueryRow("SELECT id, title, description, completed FROM tasks WHERE id = $1", id).
-		Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
+	err = db.QueryRow("SELECT id, title, description, completed, created_at, updated_at FROM tasks WHERE id = $1", id).
+		Scan(&t.ID, &t.Title, &t.Description, &t.Completed, &t.CreatedAt, &t.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		sendError(w, "Task not found", http.StatusNotFound)
@@ -122,11 +126,12 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = db.QueryRow(
-		"INSERT INTO tasks (title, description, completed) VALUES ($1, $2, $3) RETURNING id",
+		"INSERT INTO tasks (title, description, completed) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at",
 		newTask.Title, newTask.Description, newTask.Completed,
-	).Scan(&newTask.ID)
+	).Scan(&newTask.ID, &newTask.CreatedAt, &newTask.UpdatedAt)
 
 	if err != nil {
+		log.Println(err)
 		sendError(w, "Failed to create task", http.StatusInternalServerError)
 		return
 	}
@@ -174,7 +179,15 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedTask.ID = id
+	// Fetch updated task to include timestamps
+	err = db.QueryRow(
+		"SELECT id, title, description, completed, created_at, updated_at FROM tasks WHERE id = $1", id,
+	).Scan(&updatedTask.ID, &updatedTask.Title, &updatedTask.Description, &updatedTask.Completed, &updatedTask.CreatedAt, &updatedTask.UpdatedAt)
+	if err != nil {
+		sendError(w, "Failed to fetch updated task", http.StatusInternalServerError)
+		return
+	}
+
 	writeJSON(w, http.StatusOK, updatedTask)
 }
 
@@ -226,6 +239,15 @@ func toggleTaskCompletion(w http.ResponseWriter, r *http.Request) {
 	_, err = db.Exec("UPDATE tasks SET completed = $1 WHERE id = $2", t.Completed, id)
 	if err != nil {
 		sendError(w, "Failed to update task", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch updated task
+	err = db.QueryRow(
+		"SELECT id, title, description, completed, created_at, updated_at FROM tasks WHERE id = $1", id,
+	).Scan(&t.ID, &t.Title, &t.Description, &t.Completed, &t.CreatedAt, &t.UpdatedAt)
+	if err != nil {
+		sendError(w, "Failed to fetch updated task", http.StatusInternalServerError)
 		return
 	}
 
