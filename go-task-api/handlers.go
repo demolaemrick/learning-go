@@ -67,6 +67,7 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 	query := "SELECT id, title, description, completed, created_at, updated_at FROM tasks"
 	var args []interface{}
 	var conditions []string
+	paramIndex := 1 // Track $n placeholders
 
 	completedParam := r.URL.Query().Get("completed")
 	if completedParam != "" {
@@ -79,9 +80,16 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 		args = append(args, completed)
 	}
 
+	searchParam := r.URL.Query().Get("search")
+	if searchParam != "" && strings.TrimSpace(searchParam) != "" {
+		searchPattern := "%" + searchParam + "%"
+		conditions = append(conditions, "(title ILIKE $"+strconv.Itoa(paramIndex)+" OR description ILIKE $"+strconv.Itoa(paramIndex)+")")
+		args = append(args, searchPattern)
+		paramIndex++
+	}
+
 	sortField := strings.ToLower(r.URL.Query().Get("sort"))
 	order := strings.ToLower(r.URL.Query().Get("order"))
-	
 	validSortFields := []string{"title", "created_at", "updated_at"}
 	if sortField != "" {
 		if !slices.Contains(validSortFields, sortField) {
