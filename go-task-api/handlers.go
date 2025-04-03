@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -62,7 +64,47 @@ func sendError(w http.ResponseWriter, message string, statusCode int) {
 }
 
 func getTasks(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT id, title, description, completed, created_at, updated_at FROM tasks")
+	query := "SELECT id, title, description, completed, created_at, updated_at FROM tasks"
+	var args []interface{}
+	var conditions []string
+
+	completedParam := r.URL.Query().Get("completed")
+	if completedParam != "" {
+		completed, err := strconv.ParseBool(completedParam)
+		if err != nil {
+			sendError(w, "Invalid 'completed' parameter - must be true or false", http.StatusBadRequest)
+			return
+		}
+		conditions = append(conditions, "completed = $1")
+		args = append(args, completed)
+	}
+
+	sortField := strings.ToLower(r.URL.Query().Get("sort"))
+	order := strings.ToLower(r.URL.Query().Get("order"))
+	
+	validSortFields := []string{"title", "created_at", "updated_at"}
+	if sortField != "" {
+		if !slices.Contains(validSortFields, sortField) {
+			sendError(w, "Invalid 'sort' parameter - must be title, created_at, or updated_at", http.StatusBadRequest)
+			return
+		}
+
+		sortOrder := "ASC"
+
+		if order == "desc" {
+			sortOrder = "DESC"
+		} else if order != "" && order != "asc" {
+			sendError(w, "Invalid 'order' parameter - must be asc or desc", http.StatusBadRequest)
+			return
+		}
+		query += " ORDER BY " + sortField + " " + sortOrder
+	}
+
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	rows, err := db.Query(query, args...)
 	if err != nil {
 		sendError(w, "Failed to fetch tasks", http.StatusInternalServerError)
 		return
