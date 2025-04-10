@@ -30,6 +30,7 @@ func main() {
 	}
 
 	router := mux.NewRouter()
+	router.Use(LoggingMiddlware)
 
 	//Define routes
 	router.HandleFunc("/tasks", getTasks).Methods("GET")
