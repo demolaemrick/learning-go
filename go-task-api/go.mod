@@ -1,5 +1,6 @@
 module go-task-api
 
+
 go 1.23.3
 
 require (

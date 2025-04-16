@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"os"
 
+	"go-task-api/handlers"
+
 	"github.com/gorilla/mux"
 	_ "github.com/joho/godotenv/autoload" // Auto-load .env file
 	_ "github.com/lib/pq"                 // PostgreSQL driver
 )
-
-var db *sql.DB // Global DB handle so it is accessible to all handlers
 
 func main() {
 	PORT := ":9000"
@@ -43,6 +43,8 @@ func main() {
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=%s", dbUser, dbPassword, dbName, dbHost, dbPort, dbSSLMode)
 
 	var err error
+	var db *sql.DB
+
 	db, err = sql.Open("postgres", connStr)
 
 	if err != nil {
@@ -55,24 +57,27 @@ func main() {
 		log.Fatal("Failed to ping database:", err)
 	}
 
+	// Initialize handler with DB
+	h := &handlers.Handler{DB: db}
+
 	router := mux.NewRouter()
-	router.Use(LoggingMiddleware)
+	
 
 	// Public routes
-	router.HandleFunc("/signup", signup).Methods("POST")
-	router.HandleFunc("/login", login).Methods("POST")
+	router.HandleFunc("/signup", h.Signup).Methods("POST")
+	router.HandleFunc("/login", h.Login).Methods("POST")
 
 	// Protected routes
 	protected := router.PathPrefix("").Subrouter()
-	protected.Use(AuthMiddleware)
-	protected.HandleFunc("/users", getUsers).Methods("GET")
-	protected.HandleFunc("/tasks", getTasks).Methods("GET")
-	protected.HandleFunc("/tasks/{id}", getTask).Methods("GET")
-	protected.HandleFunc("/tasks", createTask).Methods("POST")
-	protected.HandleFunc("/tasks/{id}", updateTask).Methods("PUT")
-	protected.HandleFunc("/tasks/{id}", deleteTask).Methods("DELETE")
-	protected.HandleFunc("/tasks/{id}/toggle", toggleTaskCompletion).Methods("PATCH")
-	protected.HandleFunc("/tasks", deleteAllTasks).Methods("DELETE")
+	protected.Use(AuthMiddleware(h))
+	protected.HandleFunc("/users", h.GetUsers).Methods("GET")
+	protected.HandleFunc("/tasks", h.GetTasks).Methods("GET")
+	protected.HandleFunc("/tasks/{id}", h.GetTask).Methods("GET")
+	protected.HandleFunc("/tasks", h.CreateTask).Methods("POST")
+	protected.HandleFunc("/tasks/{id}", h.UpdateTask).Methods("PUT")
+	protected.HandleFunc("/tasks/{id}", h.DeleteTask).Methods("DELETE")
+	protected.HandleFunc("/tasks/{id}/toggle", h.ToggleTaskCompletion).Methods("PATCH")
+	protected.HandleFunc("/tasks", h.DeleteAllTasks).Methods("DELETE")
 
 	log.Printf("Starting server on port %v...", PORT)
 	err = http.ListenAndServe(PORT, router)
