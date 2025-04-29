@@ -1,0 +1,6 @@
+.git
+*.md
+.env
+*.log
+init.sql
+wait-for-postgres.sh

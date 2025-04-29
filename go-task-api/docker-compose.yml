@@ -1,0 +1,30 @@
+services:
+  api:
+    image: go-task-api
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/root/wait-for-postgres.sh"]
+    command: ["./task-api"]
+    volumes:
+      - ./wait-for-postgres.sh:/root/wait-for-postgres.sh
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+volumes:
+  pgdata:

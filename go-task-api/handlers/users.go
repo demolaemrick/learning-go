@@ -87,7 +87,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify password
-	if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(input.Password)); err != nil {
+	if compareErr := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(input.Password)); compareErr != nil {
 		h.SendError(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
