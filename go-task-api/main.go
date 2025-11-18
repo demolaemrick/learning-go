@@ -80,7 +80,8 @@ func main() {
 	protected.HandleFunc("/tasks", h.DeleteAllTasks).Methods("DELETE")
 
 	log.Printf("Starting server on port %v...", PORT)
-	err = http.ListenAndServe(PORT, router)
+	err = http.ListenAndServe("0.0.0.0:"+PORT, router)
+	
 	if err != nil {
 		log.Fatal("Failed to start server: ", err)
 	}
