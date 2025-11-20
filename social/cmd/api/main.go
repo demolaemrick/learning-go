@@ -31,6 +31,7 @@ func main() {
 	}
 
 	defer db.Close()
+
 	log.Println("database connection pool established")
 
 	store := store.NewStorage(db)
@@ -39,6 +40,7 @@ func main() {
 		config: config,
 		store:  store,
 	}
+	
 	mux := app.mount()
 
 	log.Fatal(app.run(mux))
