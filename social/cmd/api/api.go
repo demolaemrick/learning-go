@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/demolaemrick/social/store"
+	"github.com/demolaemrick/social/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -16,9 +16,9 @@ type application struct {
 }
 
 type config struct {
-	addr string
-	db   dbConfig
-	env  string
+	addr    string
+	db      dbConfig
+	env     string
 	version string
 }
 
@@ -41,6 +41,14 @@ func (app *application) mount() http.Handler {
 		r.Get("/health", app.healthCheckHandler)
 		r.Route("/posts", func(r chi.Router) {
 			r.Post("/", app.createPostHandler)
+
+			r.Route("/{id}", func(r chi.Router) {
+				r.Get("/", app.getPostHandler)
+				r.Patch("/", app.updatePostHandler)
+				r.Route("/comments", func(r chi.Router) {
+					r.Post("/", app.createCommentHandler)
+				})
+			})
 		})
 	})
 

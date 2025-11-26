@@ -5,7 +5,7 @@ import (
 
 	"github.com/demolaemrick/social/internal/db"
 	"github.com/demolaemrick/social/internal/env"
-	"github.com/demolaemrick/social/store"
+	"github.com/demolaemrick/social/internal/store"
 )
 
 const version = "0.0.1"
@@ -20,7 +20,7 @@ func main() {
 			maxIdleConns: env.GetInt("DB_MAX_IDLE_CONNS", 30),
 			maxIdleTime:  env.GetString("DB_MAX_IDLE_TIME", "15m"),
 		},
-		env:  env.GetString("ENV", "development"),
+		env:     env.GetString("ENV", "development"),
 		version: version,
 	}
 
@@ -40,7 +40,7 @@ func main() {
 		config: config,
 		store:  store,
 	}
-	
+
 	mux := app.mount()
 
 	log.Fatal(app.run(mux))
