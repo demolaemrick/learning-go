@@ -16,3 +16,7 @@ migrate-down:
 .PHONY: seed
 seed: 
 	@bash -c 'source .envrc && go run cmd/migrate/seed/main.go'
+
+.PHONY: migrate-down-1
+migrate-down-1:
+	@migrate -path $(MIGRATIONS_PATH) -database "$(DB_ADDR)" down 1
