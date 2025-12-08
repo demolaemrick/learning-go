@@ -20,3 +20,8 @@ seed:
 .PHONY: migrate-down-1
 migrate-down-1:
 	@migrate -path $(MIGRATIONS_PATH) -database "$(DB_ADDR)" down 1
+
+
+.PHONY: gen-docs
+gen-docs:
+	@swag init -g cmd/api/main.go -o docs && swag fmt

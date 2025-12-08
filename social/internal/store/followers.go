@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+
 	"github.com/lib/pq"
 )
 
@@ -26,7 +27,7 @@ func (s *FollowerStore) Follow(ctx context.Context, followerID int64, userID int
 
 	_, err := s.db.ExecContext(ctx, query, userID, followerID)
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505"{
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
 			return ErrConflict
 		}
 	}

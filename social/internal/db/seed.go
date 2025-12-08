@@ -88,7 +88,7 @@ func Seed(store store.Storage, db *sql.DB) {
 
 	// tx.Commit()
 
-		for _, user := range users {
+	for _, user := range users {
 		if err := store.Users.Create(ctx, user); err != nil {
 			log.Println("Error creating user:", err)
 			return

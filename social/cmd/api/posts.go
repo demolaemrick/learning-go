@@ -26,6 +26,20 @@ type UpdatePostRequest struct {
 	Tags    []string `json:"tags"`
 }
 
+// CreatePost godoc
+//
+//	@Summary		Creates a post
+//	@Description	Creates a post
+//	@Tags			posts
+//	@Accept			json
+//	@Produce		json
+//	@Param			payload	body		createPostRequest	true	"Post payload"
+//	@Success		201		{object}	store.Post
+//	@Failure		400		{object}	error
+//	@Failure		401		{object}	error
+//	@Failure		500		{object}	error
+//	@Security		ApiKeyAuth
+//	@Router			/posts [post]
 func (app *application) createPostHandler(w http.ResponseWriter, r *http.Request) {
 	var payload createPostRequest
 	ctx := r.Context()
@@ -58,6 +72,19 @@ func (app *application) createPostHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// GetPost godoc
+//
+//	@Summary		Fetches a post
+//	@Description	Fetches a post by ID
+//	@Tags			posts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		int	true	"Post ID"
+//	@Success		200	{object}	store.Post
+//	@Failure		400	{object}	error
+//	@Failure		404	{object}	error
+//	@Security		ApiKeyAuth
+//	@Router			/posts/{id} [get]
 func (app *application) getPostHandler(w http.ResponseWriter, r *http.Request) {
 	post := getPostFromCtx(r)
 
@@ -77,6 +104,22 @@ func (app *application) getPostHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// UpdatePost godoc
+//
+//	@Summary		Updates a post
+//	@Description	Updates a post by ID
+//	@Tags			posts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int					true	"Post ID"
+//	@Param			payload	body		UpdatePostRequest	true	"Post payload"
+//	@Success		200		{object}	store.Post
+//	@Failure		400		{object}	error
+//	@Failure		401		{object}	error
+//	@Failure		404		{object}	error
+//	@Failure		500		{object}	error
+//	@Security		ApiKeyAuth
+//	@Router			/posts/{id} [patch]
 func (app *application) updatePostHandler(w http.ResponseWriter, r *http.Request) {
 	post := getPostFromCtx(r)
 
